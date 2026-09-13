@@ -131,31 +131,25 @@ class BencodeTest {
     }
 
     @Test
-    void decode_shouldDecodeString() throws IOException {
-        Object result = Bencode.decode(input("5:hello"));
-
-        assertEquals("hello", result);
+    void decode_shouldDecodeByteString() throws IOException {
+        assertArrayEquals(bytes("hello"), (byte[]) Bencode.decode(input("5:hello")));
     }
 
     @Test
-    void decode_shouldDecodeEmptyString() throws IOException {
-        Object result = Bencode.decode(input("0:"));
-
-        assertEquals("", result);
+    void decode_shouldDecodeEmptyByteString() throws IOException {
+        assertArrayEquals(new byte[0], (byte[]) Bencode.decode(input("0:")));
     }
 
     @Test
-    void decode_shouldDecodeUtf8String() throws IOException {
-        Object result = Bencode.decode(input("6:héllo"));
-
-        assertEquals("héllo", result);
+    void decode_shouldDecodeUtf8ByteString() throws IOException {
+        assertArrayEquals(bytes("héllo"), (byte[]) Bencode.decode(input("6:héllo")));
     }
 
     @Test
     void decode_shouldDecodeList() throws IOException {
         Object result = Bencode.decode(input("li1e5:helloi2ee"));
 
-        assertEquals(List.of(1L, "hello", 2L), result);
+        assertBencodeEquals(List.of(1L, bytes("hello"), 2L), result);
     }
 
     @Test
@@ -169,9 +163,9 @@ class BencodeTest {
     void decode_shouldDecodeDictionary() throws IOException {
         Object result = Bencode.decode(input("d3:foo3:bar6:answeri42ee"));
 
-        assertEquals(
+        assertBencodeEquals(
             Map.of(
-                "foo", "bar",
+                "foo", bytes("bar"),
                 "answer", 42L
             ),
             result
@@ -180,14 +174,12 @@ class BencodeTest {
 
     @Test
     void decode_shouldDecodeNestedStructures() throws IOException {
-        String encoded = "d4:listli1ei2ee6:nestedd3:key5:valueee";
+        Object result = Bencode.decode(input("d4:listli1ei2ee6:nestedd3:key5:valueee"));
 
-        Object result = Bencode.decode(input(encoded));
-
-        assertEquals(
+        assertBencodeEquals(
             Map.of(
                 "list", List.of(1L, 2L),
-                "nested", Map.of("key", "value")
+                "nested", Map.of("key", bytes("value"))
             ),
             result
         );
@@ -204,6 +196,16 @@ class BencodeTest {
     }
 
     @Test
+    void decode_shouldPreserveNonUtf8Bytes() throws IOException {
+        byte[] binary = { (byte) 0xFF, 0x00, (byte) 0x80, 0x7F };
+
+        byte[] encoded = Bencode.encode(binary);
+        Object decoded = Bencode.decode(new ByteArrayInputStream(encoded));
+
+        assertArrayEquals(binary, (byte[]) decoded);
+    }
+
+    @Test
     void encodeDecode_shouldPreserveNumber() throws IOException {
         byte[] encoded = Bencode.encode(12345);
 
@@ -217,30 +219,20 @@ class BencodeTest {
         String original = "Hello, 世界!";
 
         byte[] encoded = Bencode.encode(original);
-
         Object decoded = Bencode.decode(new ByteArrayInputStream(encoded));
 
-        assertEquals(original, decoded);
+        assertArrayEquals(bytes(original), (byte[]) decoded);
     }
 
     @Test
     void encodeDecode_shouldPreserveList() throws IOException {
-        List<Object> original = List.of(
-            42,
-            "hello",
-            List.of(1, 2, 3)
-        );
+        List<Object> original = List.of(42, "hello", List.of(1, 2, 3));
 
         byte[] encoded = Bencode.encode(original);
-
         Object decoded = Bencode.decode(new ByteArrayInputStream(encoded));
 
-        assertEquals(
-            List.of(
-                42L,
-                "hello",
-                List.of(1L, 2L, 3L)
-            ),
+        assertBencodeEquals(
+            List.of(42L, bytes("hello"), List.of(1L, 2L, 3L)),
             decoded
         );
     }
@@ -254,12 +246,11 @@ class BencodeTest {
         );
 
         byte[] encoded = Bencode.encode(original);
-
         Object decoded = Bencode.decode(new ByteArrayInputStream(encoded));
 
-        assertEquals(
+        assertBencodeEquals(
             Map.of(
-                "name", "test",
+                "name", bytes("test"),
                 "number", 42L,
                 "items", List.of(1L, 2L, 3L)
             ),
@@ -269,5 +260,31 @@ class BencodeTest {
 
     private static ByteArrayInputStream input(String value) {
         return new ByteArrayInputStream(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static byte[] bytes(String value) {
+        return value.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** Deep comparison that treats byte[] by value instead of identity. */
+    private static void assertBencodeEquals(Object expected, Object actual) {
+        if (expected instanceof byte[] expectedBytes) {
+            assertInstanceOf(byte[].class, actual);
+            assertArrayEquals(expectedBytes, (byte[]) actual);
+        } else if (expected instanceof List<?> expectedList) {
+            assertInstanceOf(List.class, actual);
+            List<?> actualList = (List<?>) actual;
+            assertEquals(expectedList.size(), actualList.size());
+            for (int i = 0; i < expectedList.size(); i++)
+                assertBencodeEquals(expectedList.get(i), actualList.get(i));
+        } else if (expected instanceof Map<?, ?> expectedMap) {
+            assertInstanceOf(Map.class, actual);
+            Map<?, ?> actualMap = (Map<?, ?>) actual;
+            assertEquals(expectedMap.keySet(), actualMap.keySet());
+            for (Map.Entry<?, ?> entry : expectedMap.entrySet())
+                assertBencodeEquals(entry.getValue(), actualMap.get(entry.getKey()));
+        } else {
+            assertEquals(expected, actual);
+        }
     }
 }
