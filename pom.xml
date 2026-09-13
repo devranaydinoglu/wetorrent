@@ -13,8 +13,7 @@
     <modules>
         <module>core</module>
         <module>tracker</module>
-        <module>core</module>
-        <module>tracker</module>
+        <module>client</module>
     </modules>
 
     <properties>
