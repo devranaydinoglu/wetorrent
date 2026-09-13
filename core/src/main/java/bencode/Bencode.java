@@ -22,6 +22,20 @@ public class Bencode {
         return out.toByteArray();
     }
 
+    public static byte[] encode(byte[] b) throws IOException {
+        if (b == null)
+            throw new NullPointerException("bytes cannot be null");
+
+        byte[] lengthBytes = Integer.toString(b.length).getBytes(StandardCharsets.UTF_8);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        out.write(lengthBytes);
+        out.write(':');
+        out.write(b);
+
+        return out.toByteArray();
+    }
+
     public static byte[] encode(String str) throws IOException {
         if (str == null)
             throw new NullPointerException("s cannot be null");
@@ -74,6 +88,8 @@ public class Bencode {
             throw new NullPointerException("InputStream cannot be null");
 
         int token = in.read();
+        if (token == -1)
+            throw new EOFException("Unexpected end of input");
 
         return decodeValue(in, token);
     }
@@ -84,6 +100,8 @@ public class Bencode {
 
         if (o instanceof Number n)
             return encode(n);
+        if (o instanceof byte[] b)
+            return encode(b);
         if (o instanceof String s)
             return encode(s);
         if (o instanceof List<?> l)
@@ -104,7 +122,7 @@ public class Bencode {
                 return decodeDictionary(in);
             default:
                 if (Character.isDigit(token))
-                    return decodeString(in, token);
+                    return decodeBytes(in, token);
 
                 throw new IOException("Invalid token");
         }
@@ -115,24 +133,34 @@ public class Bencode {
         int token;
 
         while ((token = in.read()) != 'e') {
+            if (token == -1)
+                throw new EOFException("Unexpected end of number");
+
             number.append((char) token);
         }
 
         return Long.valueOf(number.toString());
     }
 
-    private static String decodeString(InputStream in, int firstDigit) throws IOException {
+    private static byte[] decodeBytes(InputStream in, int firstDigit) throws IOException {
         StringBuilder lengthBuffer = new StringBuilder();
         lengthBuffer.append((char) firstDigit);
         int token;
 
         while ((token = in.read()) != ':') {
-            lengthBuffer.append((char)token);
+            if (token == -1)
+                throw new EOFException("Unexpected end of byte string");
+
+            lengthBuffer.append((char) token);
         }
-        int strLength = Integer.parseInt(lengthBuffer.toString());
-        byte[] strBytes = new byte[strLength];
-        in.readNBytes(strBytes, 0, strLength);
-        return new String(strBytes, StandardCharsets.UTF_8);
+
+        int length = Integer.parseInt(lengthBuffer.toString());
+        byte[] bytes = in.readNBytes(length);
+
+        if (bytes.length != length)
+            throw new EOFException("Unexpected end of byte string");
+
+        return bytes;
     }
 
     private static List<Object> decodeList(InputStream in) throws IOException {
@@ -140,6 +168,10 @@ public class Bencode {
 
         while (true) {
             int token = in.read();
+
+            if (token == -1)
+                throw new EOFException("Unexpected end of list");
+
             if (token == 'e')
                 break;
 
@@ -154,16 +186,24 @@ public class Bencode {
 
         while (true) {
             int token = in.read();
+
+            if (token == -1)
+                throw new EOFException("Unexpected end of dictionary");
+
             if (token == 'e')
                 break;
 
-            String key = decodeString(in, token);
+            if (!Character.isDigit(token))
+                throw new IOException("Dictionary key must be a byte string");
+
+            byte[] keyBytes = decodeBytes(in, token);
+            String key = new String(keyBytes, StandardCharsets.UTF_8);
+
             Object value = decode(in);
             map.put(key, value);
         }
 
         return map;
     }
-
 
 }
