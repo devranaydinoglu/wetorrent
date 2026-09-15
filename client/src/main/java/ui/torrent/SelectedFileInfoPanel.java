@@ -3,7 +3,9 @@ package ui.torrent;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 
 public class SelectedFileInfoPanel {
@@ -33,7 +35,8 @@ public class SelectedFileInfoPanel {
         addProperty("Name", f.getName(), labelGbc, valueGbc);
         addProperty("Size", f.length() + " bytes", labelGbc, valueGbc);
 
-        String lastModified = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(f.lastModified());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        String lastModified = formatter.format(Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()));
         addProperty("Last modified", lastModified, labelGbc, valueGbc);
 
         if (f.isDirectory()) {
