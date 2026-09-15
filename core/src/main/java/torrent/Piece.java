@@ -12,8 +12,8 @@ public class Piece {
         try (FileInputStream fis = new FileInputStream(f)) {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-            while (fis.available() > 0) {
-                byte[] pieceBytes = fis.readNBytes(PIECE_LENGTH);
+            byte[] pieceBytes;
+            while ((pieceBytes = fis.readNBytes(PIECE_LENGTH)).length > 0) {
                 byte[] hashedPiece = DigestUtils.sha1(pieceBytes);
                 bos.write(hashedPiece);
             }
