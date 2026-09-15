@@ -1,23 +1,12 @@
 package ui.torrent;
 
-import torrent.MultiFileInfo;
-import torrent.Piece;
-import torrent.Torrent;
-import torrent.TorrentInfo;
+import torrent.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class NewTorrentDialog {
 
@@ -31,7 +20,7 @@ public class NewTorrentDialog {
 
     private boolean confirmed = false;
     private File selectedFile;
-    private File selectedTorrentSaveLocation;
+    private File torrentDestination;
     Torrent torrent;
 
     public NewTorrentDialog(Window parent) {
@@ -74,13 +63,13 @@ public class NewTorrentDialog {
         formPanel.add(selectFileBtn, gbc);
         gbc.anchor = GridBagConstraints.CENTER;
 
-        JButton torrentSaveLocationBtn = new JButton("Torrent Save Location");
-        torrentSaveLocationBtn.addActionListener(this::selectTorrentSaveLocation);
+        JButton torrentDestinationBtn = new JButton("Torrent Destination");
+        torrentDestinationBtn.addActionListener(this::selectTorrentSaveLocation);
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.gridwidth = 1;
         gbc.weightx = 0.0;
-        formPanel.add(torrentSaveLocationBtn, gbc);
+        formPanel.add(torrentDestinationBtn, gbc);
 
         contentPane.add(formPanel, BorderLayout.CENTER);
 
@@ -147,7 +136,7 @@ public class NewTorrentDialog {
         int returnVal = fileChooser.showSaveDialog(contentPane);
 
         if (returnVal == JFileChooser.APPROVE_OPTION)
-            selectedTorrentSaveLocation = fileChooser.getSelectedFile();
+            torrentDestination = fileChooser.getSelectedFile();
     }
 
     public void createTorrent(ActionEvent e) {
@@ -161,7 +150,7 @@ public class NewTorrentDialog {
             return;
         }
 
-        if (!selectedFile.exists()) {
+        if (selectedFile == null) {
             JOptionPane.showMessageDialog(
                 dialog,
                 "Please select a file to torrent.",
@@ -171,79 +160,38 @@ public class NewTorrentDialog {
             return;
         }
 
+        if (torrentDestination == null) {
+            JOptionPane.showMessageDialog(
+                dialog,
+                "Please select a destination for the torrent.",
+                "Missing Destination",
+                JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        if (!selectedFile.exists()) {
+            JOptionPane.showMessageDialog(
+                dialog,
+                "Selected file doesn't exist.",
+                "File Doesn't Exist",
+                JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        }
+
+        TorrentCreator torrentCreator = new TorrentCreator();
+        Torrent torrent = torrentCreator.create(selectedFile, trackerUrlField.getText());
+
+        TorrentWriter torrentWriter = new TorrentWriter();
+        torrentWriter.write(torrent, torrentDestination);
+
         confirmed = true;
-
-        TorrentInfo torrentInfo;
-        if (selectedFile.isDirectory()) {
-            List<MultiFileInfo> multiFileInfoList = new ArrayList<>();
-            getSubFilesRecursively(multiFileInfoList, selectedFile, selectedFile.getName());
-
-            torrentInfo = new TorrentInfo(
-                selectedFile.getName(),
-                Piece.PIECE_LENGTH,
-                "".getBytes(StandardCharsets.UTF_8), // TODO: calculate byte string
-                multiFileInfoList
-            );
-        } else {
-            torrentInfo = new TorrentInfo(
-                selectedFile.getName(),
-                Piece.PIECE_LENGTH,
-                Piece.getByteString(selectedFile),
-                selectedFile.length()
-            );
-        }
-
-        torrent = new Torrent(trackerUrlField.getText(), torrentInfo, Instant.now());
-
-        byte[] bencodedTorrent = torrent.encode();
-        File bencodedTorrentFile = new File(
-            selectedTorrentSaveLocation.getParent(),
-            selectedTorrentSaveLocation.getName() + ".torrent"
-        );
-
-        FileOutputStream fos = null;
-        try {
-            fos = new FileOutputStream(bencodedTorrentFile);
-            fos.write(bencodedTorrent);
-            fos.close();
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        } finally {
-            if(fos != null) {
-                try {
-                    fos.close();
-                } catch(IOException ignore) { }
-            }
-        }
-
         dialog.dispose();
     }
 
     public void cancelTorrentFile(ActionEvent e) {
         confirmed = false;
         dialog.dispose();
-    }
-
-    private void getSubFilesRecursively(List<MultiFileInfo> seenMultiFiles, File currentFile, String rootDir) {
-        if (!currentFile.isDirectory()) {
-            if (currentFile.isHidden())
-                return;
-
-            String relPath = currentFile.getPath();
-            int relPathStart = relPath.lastIndexOf(rootDir);
-            String[] splitPath = relPath.substring(relPathStart).split("/");
-
-            MultiFileInfo multiFile = new MultiFileInfo(
-                currentFile.length(),
-                Arrays.stream(splitPath).toList()
-            );
-            seenMultiFiles.add(multiFile);
-
-            return;
-        }
-
-        for (File f : currentFile.listFiles()) {
-            getSubFilesRecursively(seenMultiFiles, f, rootDir);
-        }
     }
 }
