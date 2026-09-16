@@ -1,8 +1,8 @@
 package torrent;
 
 import bencode.Bencode;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
@@ -14,10 +14,13 @@ public class Torrent {
     private final TorrentInfo torrentInfo;
     private final Instant creationDate;
 
-    public Torrent(String announce, TorrentInfo torrentInfo, Instant createdAt) {
+    public Torrent(@JsonProperty("announce") String announce,
+                   @JsonProperty("info") TorrentInfo torrentInfo,
+                   @JsonProperty("creation date") Instant creationDate
+    ) {
         this.announce = announce;
         this.torrentInfo = torrentInfo;
-        this.creationDate = createdAt;
+        this.creationDate = creationDate;
     }
 
     public String getAnnounce() {
@@ -28,12 +31,11 @@ public class Torrent {
         return torrentInfo;
     }
 
-    public Instant getCreatedAt() {
+    public Instant getCreationDate() {
         return creationDate;
     }
 
     public byte[] encode() {
-        ByteArrayOutputStream encodedTorrent = new ByteArrayOutputStream();
         try {
             Map<String, Object> torrentMap = new TreeMap<>();
 
@@ -45,5 +47,14 @@ public class Torrent {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Torrent{" +
+            "announce='" + announce + '\'' +
+            ", torrentInfo=" + torrentInfo.toString() +
+            ", creationDate=" + creationDate +
+            '}';
     }
 }
