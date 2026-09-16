@@ -94,7 +94,7 @@ public class Bencode {
         return decodeValue(in, token);
     }
 
-    private static byte[] encodeObject(Object o) throws IOException {
+    private static byte[] encodeObject(Object o) throws IOException, IllegalArgumentException {
         if (o == null)
             throw new NullPointerException("Cannot encode null objects");
 
@@ -109,7 +109,7 @@ public class Bencode {
         if (o instanceof Map<?, ?> m)
             return encode(m);
 
-        return encode(o.toString());
+        throw new IllegalArgumentException("Argument must be of type Number, byte[], String, List, or Map");
     }
 
     private static Object decodeValue(InputStream in, int token) throws IOException {
@@ -142,7 +142,10 @@ public class Bencode {
         return Long.valueOf(number.toString());
     }
 
-    private static byte[] decodeBytes(InputStream in, int firstDigit) throws IOException {
+    private static byte[] decodeBytes(InputStream in, int firstDigit) throws IOException,
+        IllegalArgumentException,
+        OutOfMemoryError
+    {
         StringBuilder lengthBuffer = new StringBuilder();
         lengthBuffer.append((char) firstDigit);
         int token;
