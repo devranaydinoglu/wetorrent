@@ -1,15 +1,17 @@
 package torrent;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class MultiFileInfo {
+public class FileInfo {
 
     private final long length;
     private final List<String> path;
 
-    public MultiFileInfo(long length, List<String> path) {
+    public FileInfo(@JsonProperty("length") long length, @JsonProperty("path") List<String> path) {
         this.length = length;
         this.path = path;
     }
