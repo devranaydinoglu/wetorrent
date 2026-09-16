@@ -181,7 +181,7 @@ public class NewTorrentDialog {
         }
 
         TorrentCreator torrentCreator = new TorrentCreator();
-        Torrent torrent = torrentCreator.create(selectedFile, trackerUrlField.getText());
+        Torrent torrent = torrentCreator.createFromFile(selectedFile, trackerUrlField.getText());
 
         TorrentWriter torrentWriter = new TorrentWriter();
         torrentWriter.write(torrent, torrentDestination);
