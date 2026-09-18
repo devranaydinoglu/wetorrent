@@ -31,5 +31,7 @@ public abstract class TorrentInfo {
         return pieces;
     }
 
+    public abstract long getLength();
+
     public abstract Map<String, Object> toMap();
 }

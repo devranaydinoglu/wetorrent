@@ -21,6 +21,15 @@ public class MultiFileTorrentInfo extends TorrentInfo {
     }
 
     @Override
+    public long getLength() {
+        long totalLength = 0;
+        for (FileInfo fi : files) {
+            totalLength += fi.getLength();
+        }
+        return totalLength;
+    }
+
+    @Override
     public Map<String, Object> toMap() {
         Map<String, Object> info = new TreeMap<>();
 

@@ -8,7 +8,7 @@ import java.util.TreeMap;
 
 public class SingleFileTorrentInfo extends TorrentInfo {
 
-    private Long length;
+    private long length;
 
     public SingleFileTorrentInfo(@JsonProperty("name") String name,
                                  @JsonProperty("piece length") long pieceLength,
@@ -17,6 +17,11 @@ public class SingleFileTorrentInfo extends TorrentInfo {
     ) {
         super(name, pieceLength, pieces);
         this.length = length;
+    }
+
+    @Override
+    public long getLength() {
+        return length;
     }
 
     @Override
