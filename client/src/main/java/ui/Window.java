@@ -2,8 +2,16 @@ package ui;
 
 import javax.swing.*;
 import java.awt.*;
+import java.security.SecureRandom;
 
 public class Window {
+
+    private final byte[] peerId;
+
+    public Window() {
+        peerId = new byte[20];
+        new SecureRandom().nextBytes(peerId);
+    }
 
     public void start() {
         // Schedule a job for the event-dispatching thread:
@@ -13,6 +21,10 @@ public class Window {
                 createAndShowGui();
             }
         });
+    }
+
+    public byte[] getPeerId() {
+        return peerId;
     }
 
     /**
@@ -30,7 +42,7 @@ public class Window {
         Dimension windowDimensions = new Dimension(width, height);
         frame.setPreferredSize(windowDimensions);
 
-        TopPanel topPanel = new TopPanel();
+        TopPanel topPanel = new TopPanel(this);
         frame.getContentPane().add(topPanel.getContentPane());
 
         // Display the window
