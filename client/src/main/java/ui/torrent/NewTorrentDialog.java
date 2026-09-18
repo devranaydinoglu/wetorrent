@@ -10,22 +10,21 @@ import java.io.File;
 
 public class NewTorrentDialog {
 
-    Window parent;
+    private Window window;
     private final JDialog dialog;
-    JPanel contentPane;
-    JPanel formPanel;
-    GridBagConstraints gbc;
+    private JPanel contentPane;
+    private JPanel formPanel;
+    private GridBagConstraints gbc;
     private final JTextField trackerUrlField;
-    SelectedFileInfoPanel selectedFileInfoPanel;
+    private SelectedFileInfoPanel selectedFileInfoPanel;
 
     private boolean confirmed = false;
     private File selectedFile;
     private File torrentDestination;
-    Torrent torrent;
 
-    public NewTorrentDialog(Window parent) {
-        this.parent = parent;
-        dialog = new JDialog(parent, "Create New Torrent", Dialog.ModalityType.APPLICATION_MODAL);
+    public NewTorrentDialog(Window window) {
+        this.window = window;
+        dialog = new JDialog(window, "Create New Torrent", Dialog.ModalityType.APPLICATION_MODAL);
 
         contentPane = new JPanel();
         contentPane.setLayout(new BorderLayout(10, 10));
@@ -88,7 +87,7 @@ public class NewTorrentDialog {
 
         dialog.setContentPane(contentPane);
         dialog.pack();
-        dialog.setLocationRelativeTo(parent);
+        dialog.setLocationRelativeTo(window);
     }
 
     public void showDialog() {
@@ -125,7 +124,7 @@ public class NewTorrentDialog {
             formPanel.repaint();
 
             dialog.pack();
-            dialog.setLocationRelativeTo(parent);
+            dialog.setLocationRelativeTo(window);
         }
     }
 
