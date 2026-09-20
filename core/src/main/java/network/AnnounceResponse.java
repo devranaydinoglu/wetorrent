@@ -23,6 +23,18 @@ public class AnnounceResponse {
         this.peers = null;
     }
 
+    public Integer getInterval() {
+        return interval;
+    }
+
+    public List<Peer> getPeers() {
+        return peers;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
     public Map<String, Object> toMap() {
         Map<String, Object> resMap = new HashMap<>();
 
