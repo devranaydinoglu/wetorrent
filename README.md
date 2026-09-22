@@ -1,6 +1,5 @@
-# weTorrent
 
-Torrenting works by sharing pieces of a file directly between users (P2P) instead of downloading it from a single central server.
+# weTorrent
 
 - [Terminology](#terminology)
 - [How torrenting works](#how-torrenting-works)
@@ -21,18 +20,26 @@ Torrenting works by sharing pieces of a file directly between users (P2P) instea
 
 ## How torrenting works
 
-1. User creates a torrent in the torrent client, specifying the downloadable file on your system. This creates a torrent file (or magnet URI).
-2. To participate in torrenting a file, you need to be in possession of a torrent file holding metadata of the file to download.
-3. When you "run" the torrent file in the torrent client, it establishes TCP connection between participating peers using the tracker/announce and infohash.
-4. BitTorrent handshake: to connect with peers, header is sent to all peers. 68-byte header. | "19" (1B) | "BitTorrent protocol" (19B) | protocol extensions, empty (8B) | info hash (20B) | peer id (20B) |
-5. Peer that receives the header validates it (length, infohash, etc.) and returns their infohash.
-6. Returned infohash validated on peer. If everything valid, handshake successful. If infohash send by both sides doesn't match, connection is severed.
-7. First message that is shared is bitfield (how is bitfield constructed? how does it know which pieces the peer has?).
-8. Pieces are selected based on two strategies (rarest-first strategy. very first downloaded pieces use random-first strategy because the peer has nothing to upload yet and so can't contribute to swarm)
-9. Use choking algorithm to determine who gets bandwidth.
-10. 
+Torrenting works by sharing pieces of a file directly between users (P2P) instead of downloading it from a single central server.
+
+1. A user creates a torrent in the torrent client, specifying the downloadable file on their system. This creates a torrent file (or magnet URI).
+2. To participate in torrenting a file, you need to have a torrent file containing the metadata of the file to download.
+3. When you "run" the torrent file in the torrent client, it establishes connections between participating peers using the tracker/announce and infohash.
+4. BitTorrent handshake: To connect with peers, a header is sent to all peers. The header is 68 bytes:
+| "19" (1B) | "BitTorrent protocol" (19B) | protocol extensions, empty (8B) | info hash (20B) | peer id (20B) |
+5. The peer that receives the header validates it (length, infohash, etc.) and returns their peer ID and infohash.
+6. The returned information is validated by the initiating peer. If everything is valid, the handshake is successful. If the infohash sent by both sides doesn't match, the connection is severed.
+7. The first message that is shared is the bitfield. The bitfield represents which pieces each peer currently has, with each bit corresponding to a piece index.
+8. Each peer determines which pieces it needs based on the pieces available from connected peers. Pieces are selected using two strategies: random-first and rarest-first. The very first downloaded pieces use the random-first strategy because the peer has nothing to upload yet and therefore can't contribute to the swarm.
+9. Once a peer has a piece that another peer needs, the peer can express interest in downloading from it. The choking algorithm is then used to determine which interested peers are allowed to request data.
+10. The interested peer sends multiple request messages for blocks of the needed piece. The peer providing the data responds with piece messages containing the requested blocks.
+11. Once all blocks belonging to a piece have been downloaded, the piece is reconstructed and its SHA-1 hash is checked against the corresponding hash from the torrent metadata.
+12. If the piece is valid, the peer marks the piece as complete and sends a have message to its connected peers so they know it now has that piece.
+13. As more pieces become available, peers continue selecting pieces, requesting blocks, validating completed pieces, and announcing newly completed pieces to the swarm.
+14. Once all pieces have been downloaded and validated, the peer has the complete file and becomes a seeder, continuing to upload pieces to other peers.
 
 When a torrent is created, the source file is split into fixed-size pieces (256KB - 4MB).
+
 For a 5 GB file with 1 MB pieces, there are 5,120 pieces. Each piece has a 20-byte SHA-1 hash stored in the .torrent file’s info dictionary. The total hash data for this torrent would be:
 5,120 pieces × 20 bytes = 102,400 bytes ≈ 100 KB of hash data.
 
@@ -46,15 +53,20 @@ Each peer maintains a bitfield, a binary array where bit N represents whether th
 Torrent file contains all the metadata needed to torrent:
 - announce (tracker url or DHT)
 - info dictionary:
-	- **'name'** key maps to a UTF-8 encoded string which is the suggested name to save the file (or directory) as. In the single file case, it is the name of a file, in the muliple file case, it's the name of a directory.
+	- **'name'** key maps to a UTF-8 encoded string which is the suggested name to save the file (or directory) as. In the single file case, it is the name of a file, in the multiple file case, it's the name of a directory.
 	- **'piece length'** maps to the size of a piece in bytes. Most commonly 256K.
 	- **'pieces'** maps to a string whose length is a multiple of 20. It is to be subdivided into strings of length 20, each of which is the SHA1 hash of the piece at the corresponding index.
-	- There is also a key **'length'** or a key **'files'**, but not both or neither. If length is present then the download represents a single file, otherwise it represents a set of files which go in a directory structure. In the single file case, length maps to the length of the file in bytes. For the purposes of the other keys, the multi-file case is treated as only having a single file by concatenating the files in the order they appear in the files list. The files list is the value files maps to, and is a list of dictionaries containing the following keys: length - The length of the file, in bytes. path - A list of UTF-8 encoded strings corresponding to subdirectory names, the last of which is the actual file name (a zero length list is an error case).
-(file name, lengths, piece length, concatenated SHA-1 hashes of all pieces of the file, creation date)
+	- There is also a key **'length'** or a key **'files'**, but not both or neither.
+      - If length is present then the download represents a single file.
+      - Otherwise it represents a set of files which go in a directory structure.
+      - In the single file case, length maps to the length of the file in bytes.
+      - For the purposes of the other keys, the multi-file case is treated as only having a single file by concatenating the files in the order they appear in the files list.
+      - The files list is the value files maps to, and is a list of dictionaries containing the following keys: length - The length of the file, in bytes. path - A list of UTF-8 encoded strings corresponding to subdirectory names, the last of which is the actual file name (a zero length list is an error case).
+
 
 ### Trackers
 
-Trackers are central servers that coordinate between users/peers who are downloading and uploading files. They're contacted by a user who wants to find the people who are sharing a file and it's how you tell the swarm that you have pieces to share with others.
+Trackers are central servers that coordinate between users/peers who are downloading and uploading files. They're contacted by a user who wants to find the people who are sharing a file, and it's how you tell the swarm that you have pieces to share with others.
 
 Tracker `GET` requests have the following keys:
 - **info_hash**: 20-byte sha1 hash of the bencoded form of the info dictionary from the torrent file.
@@ -66,10 +78,11 @@ Tracker `GET` requests have the following keys:
 - **left**: number of bytes this peer still has to download, encoded in base ten ascii.
 - **event**: optional key which maps to started, completed, or stopped (or empty, which is the same as not being present). If not present, this is one of the announcements done at regular intervals. An announcement using started is sent when a download first begins, and one using completed is sent when the download is complete. No completed is sent if the file was complete when started. Downloaders send an announcement using stopped when they cease downloading.
 
-Tracker responses are bencoded dictionaries. If a tracker response has a key `failure reason`, then that maps to a human readable string which explains why the query failed, and no other keys are required. Otherwise, it must have two keys: `interval`, which maps to the number of seconds the downloader should wait between regular rerequests, and `peers`. Peers maps to a list of dictionaries corresponding to peers, each of which contains the keys peer id, ip, and port, which map to the peer's self-selected ID, IP address or dns name as a string, and port number, respectively.
+A tracker can keep track of multiple torrents based on its infohash. Infohashes can be mapped to a set of peers.
+
+Tracker responses are bencoded dictionaries. If a tracker response has a key `failure reason`, then that maps to a human-readable string which explains why the query failed, and no other keys are required. Otherwise, it must have two keys: `interval`, which maps to the number of seconds the downloader should wait between regular rerequests, and `peers`. Peers maps to a list of dictionaries corresponding to peers, each of which contains the keys peer id, ip, and port, which map to the peer's self-selected ID, IP address or dns name as a string, and port number, respectively.
 More commonly is that trackers return a compact representation of the peer list. To reduce the size of tracker responses and to reduce memory and computational requirements in trackers, trackers may return peers as a packed string rather than as a bencoded list. It is suggested now to use a compact format where each peer is represented using only 6 bytes. The first 4 bytes contain the 32-bit ipv4 address. The remaining two bytes contain the port number. Both address and port use network-byte order.
 
-Multi-tracker torrent can be used for redundancy.
 
 ### Peer protocol
 
@@ -81,21 +94,39 @@ Connections start out choked and not interested.
 
 When data is being transferred, downloaders should keep several piece requests queued up at once in order to get good TCP performance (this is called 'pipelining'.) On the other side, requests which can't be written out to the TCP buffer immediately should be queued up in memory rather than kept in an application-level network buffer, so they can all be thrown out when a choke happens.
 
-Messages sent/received consist of | length (4B) | message type (1B) | payload (variable length) |
+Messages sent/received consist of:
+
+| length (4B) | message type (1B) | payload (variable length) |
+
 Message types:
 - 0 - choke - stop sending requests to this peer
 - 1 - unchoke - resume accepting requests
-- 2 - interested - signal willigness to download
+- 2 - interested - signal willingness to download
 - 3 - not interested - no needed pieces from this peer
 - 4 - have - announce completion of piece
 - 5 - bitfield - send bitfield
-- 6 - request - request a block (piece index, offset, length)
+- 6 - request - request a block (piece index, offset/begin, length)
 - 7 - piece - deliver a block (piece index, offset, block data)
 - 8 - cancel - cancel a previously sent request
 
 Before requesting/sending pieces, they're further divided into blocks.
 
+1. Handshake with all peers. A 68-byte header is sent: | 19 (1B) | "BitTorrent protocol" (19B) | protocol extensions, empty (8B) | info hash (20B) | peer id (20B) |. If both sides don't send same sha1 info hash, they sever the connection. If the receiving side's peer id doesn't match the one the initiating side expects, it severs the connection.
+2. Connections start out choked and not interested. Each side maintains two bits of state on either end: choked or not, and interested or not.
+3. Send `bitfield` message to all other peers.
+4. Send multiple `request` messages (each representing a block) to a peer that has a needed piece based on piece selection algorithm (random first, then rarest first)
+5. When a piece download is complete, check whether the hash matches and send a `have` message containing the index of the downloaded piece to all peers.
+6. Send a `piece` message when receiving a `request` message.
+
+Data transfer takes place whenever one side is interested and the other side is not choking. Interest state must be kept up to date at all times - whenever a downloader doesn't have something they currently would ask a peer for in unchoked, they must express lack of interest, despite being choked. Implementing this properly is tricky, but makes it possible for downloaders to know which peers will start downloading immediately if unchoked.
+
+When data is being transferred, downloaders should keep several piece requests queued up at once in order to get good TCP performance (this is called 'pipelining'.) On the other side, requests which can't be written out to the TCP buffer immediately should be queued up in memory rather than kept in an application-level network buffer, so they can all be thrown out when a choke happens.
+
+
 ### Choking algorithm
 
-To prevent peers from abusing the protocol, downloading files without contributing anything to the swarm, the choke algorithm is used.
-Suppose peer B is the one abusing the protocol by downloading from peer A without uploading anything. In this case, peer A chokes peer B, blocking peer B from downloading anything from peer A but peer A still has the power to download from peer B. Doing this, the network traffic relaxes, and it makes the game more fair for every participant of the network.
+To prevent peers from abusing the protocol by downloading files without contributing anything to the swarm, the choke algorithm is used.
+
+Suppose peer B is abusing the protocol by downloading from peer A without uploading anything. In this case, peer A chokes peer B, blocking peer B from downloading anything from peer A, while peer A still has the power to download from peer B.
+
+Doing this, the network traffic relaxes, and it makes it more fair for every participant of the network.
