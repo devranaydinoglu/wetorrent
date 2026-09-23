@@ -20,6 +20,10 @@ public class MultiFileTorrentInfo extends TorrentInfo {
         this.files = files;
     }
 
+    public List<FileInfo> getFiles() {
+        return files;
+    }
+
     @Override
     public long getLength() {
         long totalLength = 0;
