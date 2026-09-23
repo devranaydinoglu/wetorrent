@@ -1,16 +1,16 @@
 package ui;
 
+import base.Session;
+
 import javax.swing.*;
 import java.awt.*;
-import java.security.SecureRandom;
 
 public class Window {
 
-    private final byte[] peerId;
+    private final Session session;
 
-    public Window() {
-        peerId = new byte[20];
-        new SecureRandom().nextBytes(peerId);
+    public Window(Session session) {
+        this.session = session;
     }
 
     public void start() {
@@ -23,10 +23,6 @@ public class Window {
         });
     }
 
-    public byte[] getPeerId() {
-        return peerId;
-    }
-
     /**
      * Create the GUI and show it.  For thread safety,
      * this method should be invoked from the
@@ -36,13 +32,24 @@ public class Window {
         JFrame frame = new JFrame("weTorrent");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
+        session.setErrorListener(((msg, cause) -> {
+            SwingUtilities.invokeLater(() -> {
+                JOptionPane.showMessageDialog(
+                    frame,
+                    msg + "\n" + cause.getMessage(),
+                    "Torrent Error",
+                    JOptionPane.ERROR_MESSAGE
+                );
+            });
+        }));
+
         GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
-        int width = gd.getDisplayMode().getWidth();
-        int height = gd.getDisplayMode().getHeight();
+        int width = gd.getDisplayMode().getWidth() / 2;
+        int height = gd.getDisplayMode().getHeight() / 2;
         Dimension windowDimensions = new Dimension(width, height);
         frame.setPreferredSize(windowDimensions);
 
-        TopPanel topPanel = new TopPanel(this);
+        TopPanel topPanel = new TopPanel(session);
         frame.getContentPane().add(topPanel.getContentPane());
 
         // Display the window
