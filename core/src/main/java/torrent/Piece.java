@@ -6,7 +6,7 @@ import java.io.*;
 
 public class Piece {
 
-    public static final int PIECE_LENGTH = 256000; // In bytes
+    public static final int PIECE_LENGTH = 262144; // In bytes
 
     public static byte[] getByteString(File f) throws RuntimeException {
         try (FileInputStream fis = new FileInputStream(f)) {
