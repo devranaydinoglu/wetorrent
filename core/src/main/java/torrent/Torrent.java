@@ -36,17 +36,13 @@ public class Torrent {
     }
 
     public byte[] encode() {
-        try {
-            Map<String, Object> torrentMap = new TreeMap<>();
+        Map<String, Object> torrentMap = new TreeMap<>();
 
-            torrentMap.put("announce", announce);
-            torrentMap.put("info", torrentInfo.toMap());
-            torrentMap.put("creation date", creationDate.getEpochSecond());
+        torrentMap.put("announce", announce);
+        torrentMap.put("info", torrentInfo.toMap());
+        torrentMap.put("creation date", creationDate.getEpochSecond());
 
-            return Bencode.encode(torrentMap);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        return Bencode.encode(torrentMap);
     }
 
     @Override
