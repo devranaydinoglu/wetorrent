@@ -9,48 +9,48 @@ import java.util.TreeMap;
 
 public class Bencode {
 
-    public static byte[] encode(Number n) throws IOException {
+    public static byte[] encode(Number n) {
         if (n == null)
             throw new NullPointerException("n cannot be null");
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write('i');
         byte[] numberBytes = n.toString().getBytes(StandardCharsets.UTF_8);
-        out.write(numberBytes);
+        out.writeBytes(numberBytes);
         out.write('e');
 
         return out.toByteArray();
     }
 
-    public static byte[] encode(byte[] b) throws IOException {
+    public static byte[] encode(byte[] b) {
         if (b == null)
             throw new NullPointerException("bytes cannot be null");
 
         byte[] lengthBytes = Integer.toString(b.length).getBytes(StandardCharsets.UTF_8);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.write(lengthBytes);
+        out.writeBytes(lengthBytes);
         out.write(':');
-        out.write(b);
+        out.writeBytes(b);
 
         return out.toByteArray();
     }
 
-    public static byte[] encode(String str) throws IOException {
+    public static byte[] encode(String str) {
         if (str == null)
             throw new NullPointerException("s cannot be null");
 
         byte[] strBytes = str.getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] lengthBytes = Integer.toString(strBytes.length).getBytes(StandardCharsets.UTF_8);
-        out.write(lengthBytes);
+        out.writeBytes(lengthBytes);
         out.write(':');
-        out.write(strBytes);
+        out.writeBytes(strBytes);
 
         return out.toByteArray();
     }
 
-    public static byte[] encode(List<?> l) throws IOException {
+    public static byte[] encode(List<?> l) {
         if (l == null)
             throw new NullPointerException("l cannot be null");
 
@@ -58,14 +58,14 @@ public class Bencode {
         out.write('l');
 
         for (Object object : l) {
-            out.write(encodeObject(object));
+            out.writeBytes(encodeObject(object));
         }
         out.write('e');
 
         return out.toByteArray();
     }
 
-    public static byte[] encode(Map<?, ?> m) throws IOException {
+    public static byte[] encode(Map<?, ?> m) {
         if (m == null)
             throw new NullPointerException("m cannot be null");
 
@@ -75,8 +75,8 @@ public class Bencode {
         out.write('d');
 
         for (Map.Entry<?, ?> entry : sortedMap.entrySet()) {
-            out.write(encodeObject(entry.getKey().toString()));
-            out.write(encodeObject(entry.getValue()));
+            out.writeBytes(encodeObject(entry.getKey().toString()));
+            out.writeBytes(encodeObject(entry.getValue()));
         }
         out.write('e');
 
@@ -94,7 +94,7 @@ public class Bencode {
         return decodeValue(in, token);
     }
 
-    private static byte[] encodeObject(Object o) throws IOException, IllegalArgumentException {
+    private static byte[] encodeObject(Object o) throws IllegalArgumentException {
         if (o == null)
             throw new NullPointerException("Cannot encode null objects");
 
