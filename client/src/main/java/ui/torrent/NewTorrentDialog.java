@@ -1,5 +1,6 @@
 package ui.torrent;
 
+import base.Session;
 import torrent.*;
 
 import javax.swing.*;
@@ -11,6 +12,8 @@ import java.io.File;
 public class NewTorrentDialog {
 
     private Window window;
+    private final Session session;
+
     private final JDialog dialog;
     private JPanel contentPane;
     private JPanel formPanel;
@@ -22,8 +25,9 @@ public class NewTorrentDialog {
     private File selectedFile;
     private File torrentDestination;
 
-    public NewTorrentDialog(Window window) {
+    public NewTorrentDialog(Window window, Session session) {
         this.window = window;
+        this.session = session;
         dialog = new JDialog(window, "Create New Torrent", Dialog.ModalityType.APPLICATION_MODAL);
 
         contentPane = new JPanel();
@@ -179,11 +183,7 @@ public class NewTorrentDialog {
             return;
         }
 
-        TorrentCreator torrentCreator = new TorrentCreator();
-        Torrent torrent = torrentCreator.createFromFile(selectedFile, trackerUrlField.getText());
-
-        TorrentWriter torrentWriter = new TorrentWriter();
-        torrentWriter.write(torrent, torrentDestination);
+        session.createTorrent(selectedFile, trackerUrlField.getText(), torrentDestination);
 
         confirmed = true;
         dialog.dispose();
