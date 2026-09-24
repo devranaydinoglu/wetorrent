@@ -3,6 +3,7 @@ package torrent;
 import base.Session;
 import bencode.Bencode;
 import filesystem.FileDiscovery;
+import filesystem.PieceStorage;
 import network.*;
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -12,7 +13,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 public class TorrentHandle {
@@ -28,7 +28,8 @@ public class TorrentHandle {
     private final Path saveDir;
     private final byte[] localPeerId;
     private byte[] infoHash;
-    private boolean[] bitfield;
+    private Bitfield bitfield;
+    private PieceManager pieceManager;
     private final ExecutorService executorService;
     private int listenPort;
 
@@ -79,8 +80,15 @@ public class TorrentHandle {
             null
         );
 
-        bitfield = createBitfield();
-        peerManager.setBitfield(bitfield);
+
+        bitfield = new Bitfield(createBitfield());
+        pieceManager = new PieceManager(
+            torrent.getTorrentInfo(),
+            bitfield,
+            new PieceStorage(saveDir, torrent),
+            peerManager::broadcastHave
+        );
+        peerManager.setPieceManager(pieceManager);
 
         try {
             session.runReporting("Peer listener failed.", peerManager::listenIncoming);
