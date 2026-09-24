@@ -14,7 +14,7 @@ import java.util.List;
 
 public class FileDiscovery {
 
-    private record FileEntry(Path path, long length) {}
+    record FileEntry(Path path, long length) {}
 
     private final Path saveDir;
     private final Torrent torrent;
@@ -64,7 +64,7 @@ public class FileDiscovery {
         return have;
     }
 
-    private List<FileEntry> expectedFiles() {
+    List<FileEntry> expectedFiles() {
         TorrentInfo info = torrent.getTorrentInfo();
         if (info instanceof MultiFileTorrentInfo multi) {
             Path root = saveDir.resolve(info.getName()).normalize();
