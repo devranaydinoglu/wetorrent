@@ -24,9 +24,10 @@ public class TorrentCreator {
 
         if (f.isDirectory()) {
             List<FileInfo> fileInfoList = new ArrayList<>();
+            List<Path> filePaths = new ArrayList<>();
             Path p = f.toPath();
             try {
-                getSubFilesRecursively(fileInfoList, p, p);
+                getSubFilesRecursively(fileInfoList, filePaths, p, p);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -34,7 +35,7 @@ public class TorrentCreator {
             torrentInfo = new MultiFileTorrentInfo(
                 p.getFileName().toString(),
                 Piece.PIECE_LENGTH,
-                "".getBytes(StandardCharsets.UTF_8), // TODO: calculate byte string
+                Piece.getByteString(filePaths),
                 fileInfoList
             );
         } else {
@@ -82,7 +83,9 @@ public class TorrentCreator {
         }
     }
 
-    private void getSubFilesRecursively(List<FileInfo> files, Path current, Path root) throws IOException {
+    private void getSubFilesRecursively(List<FileInfo> files, List<Path> paths, Path current, Path root)
+        throws IOException
+    {
         if (!Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)) {
             if (Files.isHidden(current))
                 return;
@@ -98,6 +101,7 @@ public class TorrentCreator {
                 splitPath
             );
             files.add(multiFile);
+            paths.add(current);
 
             return;
         }
@@ -107,7 +111,7 @@ public class TorrentCreator {
 
             if (!childPaths.isEmpty()) {
                 for (Path p : childPaths) {
-                    getSubFilesRecursively(files, p, root);
+                    getSubFilesRecursively(files, paths, p, root);
                 }
             }
         }
