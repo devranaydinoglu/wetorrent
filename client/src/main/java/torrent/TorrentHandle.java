@@ -89,6 +89,7 @@ public class TorrentHandle {
             peerManager::broadcastHave
         );
         peerManager.setPieceManager(pieceManager);
+        peerManager.startPeriodicTasks();
 
         try {
             session.runReporting("Peer listener failed.", peerManager::listenIncoming);
