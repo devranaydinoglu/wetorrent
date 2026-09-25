@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.IntConsumer;
 
 public class PieceManager {
@@ -51,7 +52,7 @@ public class PieceManager {
         return (int) Math.min(pieceLength, totalLength - index * pieceLength);
     }
 
-    public byte[] readBlock(int index, int begin, int length) {
+    public CompletableFuture<byte[]> readBlock(int index, int begin, int length) {
         return storage.read(index, begin, length);
     }
 
@@ -125,25 +126,27 @@ public class PieceManager {
             piece.verifying = true;
         }
 
-        // Hash and write outside the lock so other connections aren't blocked on disk I/O.
-        boolean stored = false;
-        try {
-            if (hashMatches(index, piece.data)) {
-                storage.write(index, piece.data);
-                stored = true;
-            }
-        } finally {
+        if (!hashMatches(index, piece.data)) {
             synchronized (this) {
                 inProgress.remove(index);
-                if (stored)
-                    completed.setPiece(index);
             }
+            return BlockResult.PIECE_FAILED;
         }
 
-        if (!stored)
-            return BlockResult.PIECE_FAILED;
+        // The piece stays reserved until the write lands, so no peer is asked for it again meanwhile.
+        storage.write(index, piece.data).whenComplete((ignored, error) -> {
+            synchronized (this) {
+                inProgress.remove(index);
+                if (error == null)
+                    completed.setPiece(index);
+            }
 
-        onPieceCompleted.accept(index);
+            if (error == null)
+                onPieceCompleted.accept(index);
+            else
+                System.out.println("Couldn't write piece " + index + ": " + error.getMessage());
+        });
+
         return BlockResult.PIECE_VERIFIED;
     }
 

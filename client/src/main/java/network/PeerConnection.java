@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -25,7 +26,7 @@ public class PeerConnection {
 
     private sealed interface Outgoing {
         record Frame(MessageType type, byte[] payload) implements Outgoing {}
-        record Upload(BlockRequest request) implements Outgoing {}
+        record Block(BlockRequest request, byte[] data) implements Outgoing {}
         record KeepAlive() implements Outgoing {}
     }
 
@@ -50,6 +51,8 @@ public class PeerConnection {
     private final BlockingQueue<Outgoing> outgoing = new LinkedBlockingQueue<>();
     private volatile Thread writer;
     private volatile long lastSentAt = System.currentTimeMillis();
+    // Upload requests whose block is still being read from disk.
+    private final Set<BlockRequest> pendingUploads = ConcurrentHashMap.newKeySet();
 
     private final Set<BlockRequest> pendingRequests = new HashSet<>();
     private long lastBlockAt;
@@ -136,7 +139,8 @@ public class PeerConnection {
             amChoking = status;
             if (status == ChokeStatus.CHOKED) {
                 // Choking discards all of the peer's queued requests.
-                outgoing.removeIf(o -> o instanceof Outgoing.Upload);
+                pendingUploads.clear();
+                outgoing.removeIf(o -> o instanceof Outgoing.Block);
                 send(MessageType.CHOKE, new byte[0]);
             } else {
                 send(MessageType.UNCHOKE, new byte[0]);
@@ -255,12 +259,12 @@ public class PeerConnection {
             while (running) {
                 switch (outgoing.take()) {
                     case Outgoing.Frame f -> writeFrame(f.type(), f.payload());
-                    case Outgoing.Upload u -> upload(u.request());
+                    case Outgoing.Block b -> writeBlock(b.request(), b.data());
                     case Outgoing.KeepAlive k -> writeKeepAlive();
                 }
             }
         } catch (InterruptedException ignored) {
-        } catch (IOException | UncheckedIOException e) {
+        } catch (IOException e) {
             System.out.println("Send failed: " + e.getMessage());
         } finally {
             close();
@@ -283,11 +287,10 @@ public class PeerConnection {
         lastSentAt = System.currentTimeMillis();
     }
 
-    private void upload(BlockRequest r) throws IOException {
+    private void writeBlock(BlockRequest r, byte[] block) throws IOException {
         if (amChoking == ChokeStatus.CHOKED)
             return;
 
-        byte[] block = pieceManager.readBlock(r.index(), r.begin(), r.length());
         byte[] payload = ByteBuffer.allocate(8 + block.length)
             .putInt(r.index())
             .putInt(r.begin())
@@ -337,7 +340,7 @@ public class PeerConnection {
                 handlePiece(payload);
                 break;
             case CANCEL:
-                outgoing.remove(new Outgoing.Upload(parseRequest(payload)));
+                handleCancel(parseRequest(payload));
                 break;
             default:
                 break;
@@ -389,10 +392,22 @@ public class PeerConnection {
 
         if (amChoking == ChokeStatus.CHOKED || !pieceManager.getCompleted().hasPiece(r.index()))
             return;
-        if (outgoing.size() >= MAX_QUEUED_MESSAGES)
+        if (pendingUploads.size() + outgoing.size() >= MAX_QUEUED_MESSAGES || !pendingUploads.add(r))
             return;
 
-        outgoing.add(new Outgoing.Upload(r));
+        pieceManager.readBlock(r.index(), r.begin(), r.length()).whenComplete((block, error) -> {
+            if (error != null) {
+                System.out.println("Couldn't read block for upload: " + error.getMessage());
+                close();
+            } else if (pendingUploads.remove(r)) {
+                outgoing.add(new Outgoing.Block(r, block));
+            }
+        });
+    }
+
+    private void handleCancel(BlockRequest r) {
+        pendingUploads.remove(r);
+        outgoing.removeIf(o -> o instanceof Outgoing.Block b && b.request().equals(r));
     }
 
     private synchronized void handlePiece(byte[] payload) throws IOException {

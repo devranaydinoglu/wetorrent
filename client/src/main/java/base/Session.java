@@ -15,14 +15,16 @@ public class Session {
 
     private final TrackerClient trackerClient;
     private final ExecutorService executorService;
+    private final ExecutorService diskExecutor;
     private volatile ErrorListener errorListener = (msg, t) -> {};
 
     private final Map<String, TorrentHandle> torrentHandles = new ConcurrentHashMap<>();
     private final byte[] peerId;
 
-    public Session(TrackerClient trackerClient, ExecutorService executorService) {
+    public Session(TrackerClient trackerClient, ExecutorService executorService, ExecutorService diskExecutor) {
         this.trackerClient = trackerClient;
         this.executorService = executorService;
+        this.diskExecutor = diskExecutor;
 
         peerId = new byte[20];
         new SecureRandom().nextBytes(peerId);
@@ -34,6 +36,10 @@ public class Session {
 
     public ExecutorService getExecutorService() {
         return executorService;
+    }
+
+    public ExecutorService getDiskExecutor() {
+        return diskExecutor;
     }
 
     public void setErrorListener(ErrorListener errorListener) {

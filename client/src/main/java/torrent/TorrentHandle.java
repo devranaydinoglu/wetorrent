@@ -29,6 +29,7 @@ public class TorrentHandle {
     private final byte[] localPeerId;
     private byte[] infoHash;
     private Bitfield bitfield;
+    private PieceStorage pieceStorage;
     private PieceManager pieceManager;
     private final ExecutorService executorService;
     private int listenPort;
@@ -82,10 +83,11 @@ public class TorrentHandle {
 
 
         bitfield = new Bitfield(createBitfield());
+        pieceStorage = new PieceStorage(saveDir, torrent, session.getDiskExecutor());
         pieceManager = new PieceManager(
             torrent.getTorrentInfo(),
             bitfield,
-            new PieceStorage(saveDir, torrent),
+            pieceStorage,
             peerManager::broadcastHave
         );
         peerManager.setPieceManager(pieceManager);
@@ -110,6 +112,8 @@ public class TorrentHandle {
 
     public void close() {
         peerManager.close();
+        if (pieceStorage != null)
+            pieceStorage.close();
     }
 
     private int getAvailablePort() throws RuntimeException {
