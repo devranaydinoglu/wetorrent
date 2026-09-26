@@ -50,12 +50,23 @@ public class Window {
         frame.setPreferredSize(windowDimensions);
 
         TopPanel topPanel = new TopPanel(session);
-        frame.getContentPane().add(topPanel.getContentPane());
+        frame.getContentPane().add(topPanel.getContentPane(), BorderLayout.NORTH);
+
+        TorrentSidebar sidebar = new TorrentSidebar(session);
+        JSplitPane mainArea = new JSplitPane(
+            JSplitPane.HORIZONTAL_SPLIT,
+            sidebar.getContentPane(),
+            new JPanel()
+        );
+        mainArea.setResizeWeight(0.2);
+        frame.getContentPane().add(mainArea, BorderLayout.CENTER);
 
         // Display the window
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+
+        mainArea.setDividerLocation(0.2);
     }
 
 }
