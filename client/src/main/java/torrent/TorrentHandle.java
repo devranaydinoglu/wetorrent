@@ -48,7 +48,7 @@ public class TorrentHandle {
         this.saveDir = saveDir;
         this.localPeerId = localPeerId;
         this.executorService = executorService;
-        System.out.println(Arrays.toString(localPeerId));
+
         byte[] bencodedInfoDict = Bencode.encode(torrent.getTorrentInfo().toMap());
         infoHash = DigestUtils.sha1(bencodedInfoDict);
         this.listenPort = getAvailablePort();
@@ -60,6 +60,10 @@ public class TorrentHandle {
 
     public String getInfoHashHex() {
         return HexFormat.of().formatHex(infoHash);
+    }
+
+    public String getName() {
+        return torrent.getTorrentInfo().getName();
     }
 
     public void start() {
