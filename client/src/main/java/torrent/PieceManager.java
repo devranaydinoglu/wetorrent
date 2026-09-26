@@ -20,6 +20,8 @@ public class PieceManager {
 
     public record BlockRequest(int index, int begin, int length) {}
 
+    public enum PieceState { MISSING, DOWNLOADING, DONE }
+
     private final byte[] hashes;
     private final long pieceLength;
     private final long totalLength;
@@ -158,6 +160,22 @@ public class PieceManager {
                 p.resetUnreceived();
             }
         }
+    }
+
+    public synchronized PieceState[] getPieceStates() {
+        boolean[] done = completed.getBitfield();
+        PieceState[] states = new PieceState[done.length];
+
+        for (int i = 0; i < done.length; i++) {
+            if (done[i])
+                states[i] = PieceState.DONE;
+            else if (inProgress.containsKey(i))
+                states[i] = PieceState.DOWNLOADING;
+            else
+                states[i] = PieceState.MISSING;
+        }
+
+        return states;
     }
 
     private int pickRarest(boolean[] remoteHas) {
