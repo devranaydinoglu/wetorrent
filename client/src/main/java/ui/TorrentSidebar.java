@@ -6,16 +6,17 @@ import torrent.TorrentHandle;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.function.Consumer;
 
 public class TorrentSidebar {
 
     private final JPanel contentPane;
     private final DefaultListModel<TorrentHandle> listModel = new DefaultListModel<>();
+    private final JList<TorrentHandle> torrentList = new JList<>(listModel);
 
     public TorrentSidebar(Session session) {
         contentPane = new JPanel(new BorderLayout());
 
-        JList<TorrentHandle> torrentList = new JList<>(listModel);
         torrentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         torrentList.setCellRenderer(new DefaultListCellRenderer() {
             @Override
@@ -46,6 +47,13 @@ public class TorrentSidebar {
 
     public JPanel getContentPane() {
         return contentPane;
+    }
+
+    public void addSelectionListener(Consumer<TorrentHandle> listener) {
+        torrentList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting())
+                listener.accept(torrentList.getSelectedValue());
+        });
     }
 
 }
