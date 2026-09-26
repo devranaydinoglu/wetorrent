@@ -53,10 +53,13 @@ public class Window {
         frame.getContentPane().add(topPanel.getContentPane(), BorderLayout.NORTH);
 
         TorrentSidebar sidebar = new TorrentSidebar(session);
+        PiecesPanel piecesPanel = new PiecesPanel();
+        sidebar.addSelectionListener(piecesPanel::setTorrent);
+
         JSplitPane mainArea = new JSplitPane(
             JSplitPane.HORIZONTAL_SPLIT,
             sidebar.getContentPane(),
-            new JPanel()
+            piecesPanel.getContentPane()
         );
         mainArea.setResizeWeight(0.2);
         frame.getContentPane().add(mainArea, BorderLayout.CENTER);
