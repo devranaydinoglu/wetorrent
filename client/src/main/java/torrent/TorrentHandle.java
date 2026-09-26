@@ -30,7 +30,7 @@ public class TorrentHandle {
     private byte[] infoHash;
     private Bitfield bitfield;
     private PieceStorage pieceStorage;
-    private PieceManager pieceManager;
+    private volatile PieceManager pieceManager;
     private final ExecutorService executorService;
     private int listenPort;
 
@@ -64,6 +64,11 @@ public class TorrentHandle {
 
     public String getName() {
         return torrent.getTorrentInfo().getName();
+    }
+
+    public PieceManager.PieceState[] getPieceStates() {
+        PieceManager manager = pieceManager;
+        return manager == null ? new PieceManager.PieceState[0] : manager.getPieceStates();
     }
 
     public void start() {
