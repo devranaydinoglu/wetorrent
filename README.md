@@ -4,6 +4,7 @@
 - [Terminology](#terminology)
 - [How torrenting works](#how-torrenting-works)
 - [Components](#components)
+- [Architecture](#architecture)
 
 ## Terminology
 
@@ -130,3 +131,105 @@ To prevent peers from abusing the protocol by downloading files without contribu
 Suppose peer B is abusing the protocol by downloading from peer A without uploading anything. In this case, peer A chokes peer B, blocking peer B from downloading anything from peer A, while peer A still has the power to download from peer B.
 
 Doing this, the network traffic relaxes, and it makes it more fair for every participant of the network.
+
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client["client"]
+        UI["UI<br/>(Swing event thread)"]
+        Session["Session"]
+        TorrentHandle["TorrentHandle<br/>(one per torrent)"]
+        FileDiscovery["FileDiscovery"]
+        PeerManager["PeerManager<br/>(choking timer)"]
+        PeerConnection["PeerConnection<br/>(one per peer, reader + writer thread)"]
+        PieceManager["PieceManager<br/>(selection, tracking, hash check)"]
+        Bitfield["Bitfield"]
+        PieceStorage["PieceStorage<br/>(disk thread pool)"]
+
+        UI --> Session
+        Session --> TorrentHandle
+        TorrentHandle --> FileDiscovery
+        TorrentHandle --> PeerManager
+        TorrentHandle --> PieceManager
+        PeerManager --> PeerConnection
+        PeerConnection --> PieceManager
+        PieceManager --> Bitfield
+        PieceManager --> PieceStorage
+    end
+
+    Core["core<br/>(bencode, torrent files)"]
+    Tracker["tracker"]
+    Peers(("Other peers"))
+    Disk[("Files on disk")]
+
+    Core -.-> Client
+    Core -.-> Tracker
+    TorrentHandle -->|HTTP announce| Tracker
+    PeerConnection <-->|TCP peer protocol| Peers
+    PieceStorage --> Disk
+    FileDiscovery --> Disk
+```
+
+### Modules
+
+- **core** - shared code used by both the client and the tracker. Bencoding, reading and writing torrent files, and tracker request/response types.
+- **client** - the torrent client and its UI.
+- **tracker** - a simple HTTP tracker that keeps a list of peers for each infohash.
+
+### Client classes
+
+- **Session** - holds all added torrents, the peer ID and the thread pools.
+- **TorrentHandle** - one per torrent. Checks which pieces already exist on disk, contacts the tracker and connects to the returned peers.
+- **PeerManager** - keeps all peer connections of a torrent. Runs the choking algorithm and sends a `have` message to all peers when a piece is done.
+- **PeerConnection** - one per connected peer. Does the handshake, handles incoming messages and sends messages.
+- **PieceManager** - decides which pieces to download, keeps track of them and checks the hash of finished pieces.
+- **Bitfield** - which pieces a peer has. There is one for us and one for every connected peer.
+- **FileDiscovery** - checks which pieces are already on disk when a torrent starts.
+- **PieceStorage** - reads and writes pieces to the files on disk.
+
+### Concurrency
+
+- The UI runs on the Swing event thread. Other threads update the UI through `SwingUtilities.invokeLater`.
+- Network work runs on vthreads. Each torrent has one thread that accepts incoming connections. Each connected peer has two threads:
+	- **reader** - reads messages from the socket and handles them.
+	- **writer** - takes messages from a queue and sends them.
+- The reader never waits on sending. Without this, two peers that upload to each other at the same time could both get stuck waiting to send while nobody reads.
+- Disk work runs on a threadpool of 2 platform threads. Vthreads don't help here because file I/O blocks the thread under them anyway. Reads and writes return a `CompletableFuture`, so network threads never wait on the disk.
+- Each torrent has one timer thread that runs every 10 seconds. It runs the choking algorithm, cancels requests that timed out and sends keep-alive messages.
+- Shared state like the bitfields and the piece tracking is protected with locks.
+
+### Piece selection and tracking
+
+- Pieces are split into 16 KB blocks. Blocks are what get requested from peers.
+- The client counts how many connected peers have each piece.
+- Rarest-first algorithm - the piece that the fewest peers have is picked next. If many pieces are equally rare, one of them is picked at random.
+- Unfinished pieces left behind by a peer that choked us or disconnected are finished before new pieces are started.
+- A piece that is being downloaded belongs to one peer, so two peers are never asked for the same block.
+- When all blocks of a piece have arrived, its SHA-1 hash is checked. If it matches, the piece is written to disk, marked as done and a `have` message is sent to all peers. If not, the piece is downloaded again.
+
+### Pipelining
+
+- Up to 10 block requests are sent to a peer at once instead of waiting for each block to arrive.
+- Every time a block arrives, a new request is sent, so there are always requests waiting.
+- If a peer sends nothing for 60 seconds, its requests are cancelled and its pieces are given to other peers.
+
+### Choking
+
+- Every 10 seconds, the 3 interested peers with the best rate are unchoked. While downloading, those are the peers that upload the most to us. While seeding, those are the peers that download the most from us.
+- Every 30 seconds, one more random interested peer is unchoked. This is called an optimistic unchoke and gives new peers a chance.
+- If a peer becomes interested and there is a free slot, it is unchoked right away.
+- Choking a peer throws away all of its queued requests.
+
+### Uploading
+
+- A `request` is only accepted if we are not choking the peer and we have the piece. A block can be at most 16 KB.
+- The block is read from disk on a disk thread. When it's read, a `piece` message is added to the send queue.
+- A `cancel` message removes the request if it hasn't been sent yet.
+
+### Disk storage
+
+- Files are opened once and stay open while the torrent runs.
+- In a multi-file torrent, a piece can cover the end of one file and the start of the next. Reads and writes are split across those files.
+- Files are set to their full size on the first write. When the torrent starts again, FileDiscovery checks which pieces are already there, so the download continues where it stopped.
