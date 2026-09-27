@@ -1,6 +1,9 @@
 package ui.torrent;
 
 import base.Session;
+import torrent.Torrent;
+import torrent.TorrentCreator;
+import torrent.TorrentReader;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,6 +20,7 @@ public class AddTorrentDialog {
     private JPanel contentPane;
     private JPanel formPanel;
     private GridBagConstraints gbc;
+    private SelectedFileInfoPanel selectedFileInfoPanel;
 
     private File selectedTorrent;
     private File torrentDestination;
@@ -109,7 +113,37 @@ public class AddTorrentDialog {
                 return;
             }
 
-            selectedTorrent = fileChooser.getSelectedFile();
+            File file = fileChooser.getSelectedFile();
+            Torrent torrent;
+            try {
+                byte[] bytes = new TorrentReader().read(file);
+                torrent = new TorrentCreator().createFromBytes(bytes);
+            } catch (RuntimeException ex) {
+                JOptionPane.showMessageDialog(
+                    dialog,
+                    "Couldn't read torrent file.",
+                    "Torrent Processing Failed",
+                    JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            selectedTorrent = file;
+
+            if (selectedFileInfoPanel != null)
+                formPanel.remove(selectedFileInfoPanel.getContentPane());
+
+            selectedFileInfoPanel = new SelectedFileInfoPanel(torrent);
+            gbc.gridx = 1;
+            gbc.gridy = 1;
+            gbc.gridwidth = 2;
+            gbc.weightx = 1.0;
+            formPanel.add(selectedFileInfoPanel.getContentPane(), gbc);
+            formPanel.revalidate();
+            formPanel.repaint();
+
+            dialog.pack();
+            dialog.setLocationRelativeTo(window);
         }
     }
 
