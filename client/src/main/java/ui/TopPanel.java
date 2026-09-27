@@ -21,11 +21,11 @@ public class TopPanel {
         flowLayout.setAlignment(FlowLayout.LEFT);
         contentPane.setLayout(flowLayout);
 
-        JButton newTorrentBtn = new JButton("New");
+        JButton newTorrentBtn = new JButton("Create New Torrent");
         newTorrentBtn.addActionListener(this::showNewTorrent);
         contentPane.add(newTorrentBtn);
 
-        JButton downloadTorrentBtn = new JButton("Download");
+        JButton downloadTorrentBtn = new JButton("Download Torrent");
         downloadTorrentBtn.addActionListener(this::showAddTorrent);
         contentPane.add(downloadTorrentBtn);
     }
