@@ -1,5 +1,10 @@
 package ui.torrent;
 
+import torrent.FileInfo;
+import torrent.MultiFileTorrentInfo;
+import torrent.Torrent;
+import torrent.TorrentInfo;
+
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
@@ -12,28 +17,43 @@ public class SelectedFileInfoPanel {
 
     private final JPanel contentPane;
 
+    public SelectedFileInfoPanel(Torrent torrent) {
+        contentPane = new JPanel(new GridBagLayout());
+
+        if (torrent == null)
+            return;
+
+        GridBagConstraints labelGbc = createLabelConstraints();
+        GridBagConstraints valueGbc = createValueConstraints();
+
+        TorrentInfo info = torrent.getTorrentInfo();
+        addProperty("Name", info.getName(), labelGbc, valueGbc);
+        addProperty("Size", formatSize(info.getLength()), labelGbc, valueGbc);
+
+        if (info instanceof MultiFileTorrentInfo multiFileInfo) {
+            DefaultListModel<String> model = new DefaultListModel<>();
+            for (FileInfo fi : multiFileInfo.getFiles())
+                model.addElement(String.join("/", fi.getPath()) + " (" + formatSize(fi.getLength()) + ")");
+
+            JList<String> fileList = new JList<>(model);
+            JScrollPane scrollPane = new JScrollPane(fileList);
+            scrollPane.setPreferredSize(new Dimension(200, 150));
+
+            addPropertyComponent("Files", scrollPane, labelGbc, valueGbc);
+        }
+    }
+
     public SelectedFileInfoPanel(File f) {
         contentPane = new JPanel(new GridBagLayout());
 
         if (f == null)
             return;
 
-        GridBagConstraints labelGbc = new GridBagConstraints();
-        labelGbc.gridx = 0;
-        labelGbc.weightx = 1.0;
-        labelGbc.fill = GridBagConstraints.HORIZONTAL;
-        labelGbc.anchor = GridBagConstraints.NORTHWEST;
-        labelGbc.insets = new Insets(4, 4, 4, 4);
-
-        GridBagConstraints valueGbc = new GridBagConstraints();
-        valueGbc.gridx = 1;
-        valueGbc.weightx = 2.0;
-        valueGbc.fill = GridBagConstraints.HORIZONTAL;
-        valueGbc.anchor = GridBagConstraints.NORTHWEST;
-        valueGbc.insets = new Insets(4, 4, 4, 4);
+        GridBagConstraints labelGbc = createLabelConstraints();
+        GridBagConstraints valueGbc = createValueConstraints();
 
         addProperty("Name", f.getName(), labelGbc, valueGbc);
-        addProperty("Size", f.length() + " bytes", labelGbc, valueGbc);
+        addProperty("Size", formatSize(f.length()), labelGbc, valueGbc);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String lastModified = formatter.format(Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()));
@@ -62,6 +82,30 @@ public class SelectedFileInfoPanel {
                     labelGbc, valueGbc);
             }
         }
+    }
+
+    private static String formatSize(long bytes) {
+        return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
+    }
+
+    private static GridBagConstraints createLabelConstraints() {
+        GridBagConstraints labelGbc = new GridBagConstraints();
+        labelGbc.gridx = 0;
+        labelGbc.weightx = 1.0;
+        labelGbc.fill = GridBagConstraints.HORIZONTAL;
+        labelGbc.anchor = GridBagConstraints.NORTHWEST;
+        labelGbc.insets = new Insets(4, 4, 4, 4);
+        return labelGbc;
+    }
+
+    private static GridBagConstraints createValueConstraints() {
+        GridBagConstraints valueGbc = new GridBagConstraints();
+        valueGbc.gridx = 1;
+        valueGbc.weightx = 2.0;
+        valueGbc.fill = GridBagConstraints.HORIZONTAL;
+        valueGbc.anchor = GridBagConstraints.NORTHWEST;
+        valueGbc.insets = new Insets(4, 4, 4, 4);
+        return valueGbc;
     }
 
     private void addProperty(
