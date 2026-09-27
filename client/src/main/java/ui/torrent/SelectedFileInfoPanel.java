@@ -8,10 +8,17 @@ import torrent.TorrentInfo;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SelectedFileInfoPanel {
 
@@ -53,7 +60,7 @@ public class SelectedFileInfoPanel {
         GridBagConstraints valueGbc = createValueConstraints();
 
         addProperty("Name", f.getName(), labelGbc, valueGbc);
-        addProperty("Size", formatSize(f.length()), labelGbc, valueGbc);
+        addProperty("Size", formatSize(sizeOf(f)), labelGbc, valueGbc);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String lastModified = formatter.format(Instant.ofEpochMilli(f.lastModified()).atZone(ZoneId.systemDefault()));
@@ -84,8 +91,32 @@ public class SelectedFileInfoPanel {
         }
     }
 
+    private static long sizeOf(File f) {
+        if (!f.isDirectory())
+            return f.length();
+
+        final AtomicLong size = new AtomicLong(0);
+
+        try {
+            Files.walkFileTree(f.toPath(), new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    size.addAndGet(attrs.size());
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException e) {
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException ignored) {}
+
+        return size.get();
+    }
+
     private static String formatSize(long bytes) {
-        return String.format("%.2f MB", bytes / (1024.0 * 1024.0));
+        return String.format("%.2f MiB", bytes / (1024.0 * 1024.0));
     }
 
     private static GridBagConstraints createLabelConstraints() {
