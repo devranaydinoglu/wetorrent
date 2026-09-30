@@ -21,6 +21,7 @@ public class AddTorrentDialog {
     private JPanel formPanel;
     private GridBagConstraints gbc;
     private SelectedFileInfoPanel selectedFileInfoPanel;
+    private final JLabel downloadDestinationLabel;
 
     private File selectedTorrent;
     private File torrentDestination;
@@ -58,6 +59,16 @@ public class AddTorrentDialog {
         gbc.gridwidth = 1;
         gbc.weightx = 0.0;
         formPanel.add(downloadDestinationBtn, gbc);
+
+        downloadDestinationLabel = new JLabel();
+        GridBagConstraints destLabelGbc = new GridBagConstraints();
+        destLabelGbc.gridx = 1;
+        destLabelGbc.gridy = 2;
+        destLabelGbc.gridwidth = 2;
+        destLabelGbc.weightx = 1.0;
+        destLabelGbc.fill = GridBagConstraints.HORIZONTAL;
+        destLabelGbc.insets = new Insets(0, 8, 0, 0);
+        formPanel.add(downloadDestinationLabel, destLabelGbc);
 
         contentPane.add(formPanel, BorderLayout.CENTER);
 
@@ -158,6 +169,9 @@ public class AddTorrentDialog {
             torrentDestination = selected != null && selected.isDirectory()
                 ? selected
                 : fileChooser.getCurrentDirectory();
+            downloadDestinationLabel.setText(torrentDestination.getAbsolutePath());
+            dialog.pack();
+            dialog.setLocationRelativeTo(window);
         }
     }
 
