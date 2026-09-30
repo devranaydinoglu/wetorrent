@@ -20,6 +20,7 @@ public class NewTorrentDialog {
     private GridBagConstraints gbc;
     private final JTextField trackerUrlField;
     private SelectedFileInfoPanel selectedFileInfoPanel;
+    private final JLabel torrentDestinationLabel;
 
     private boolean confirmed = false;
     private File selectedFile;
@@ -73,6 +74,16 @@ public class NewTorrentDialog {
         gbc.gridwidth = 1;
         gbc.weightx = 0.0;
         formPanel.add(torrentDestinationBtn, gbc);
+
+        torrentDestinationLabel = new JLabel();
+        GridBagConstraints destLabelGbc = new GridBagConstraints();
+        destLabelGbc.gridx = 1;
+        destLabelGbc.gridy = 2;
+        destLabelGbc.gridwidth = 2;
+        destLabelGbc.weightx = 1.0;
+        destLabelGbc.fill = GridBagConstraints.HORIZONTAL;
+        destLabelGbc.insets = new Insets(0, 8, 0, 0);
+        formPanel.add(torrentDestinationLabel, destLabelGbc);
 
         contentPane.add(formPanel, BorderLayout.CENTER);
 
@@ -136,10 +147,35 @@ public class NewTorrentDialog {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         fileChooser.setCurrentDirectory(new File(System.getProperty("user.home")));
+        JTextField nameField = findTextField(fileChooser);
+        fileChooser.addPropertyChangeListener(JFileChooser.DIRECTORY_CHANGED_PROPERTY, evt ->
+            SwingUtilities.invokeLater(() -> {
+                fileChooser.setSelectedFile(null);
+                if (nameField != null)
+                    nameField.setText("");
+            })
+        );
         int returnVal = fileChooser.showSaveDialog(contentPane);
 
-        if (returnVal == JFileChooser.APPROVE_OPTION)
+        if (returnVal == JFileChooser.APPROVE_OPTION && fileChooser.getSelectedFile() != null) {
             torrentDestination = fileChooser.getSelectedFile();
+            torrentDestinationLabel.setText(torrentDestination.getAbsolutePath() + ".torrent");
+            dialog.pack();
+            dialog.setLocationRelativeTo(window);
+        }
+    }
+
+    private static JTextField findTextField(Container root) {
+        for (Component c : root.getComponents()) {
+            if (c instanceof JTextField textField)
+                return textField;
+            if (c instanceof Container container) {
+                JTextField found = findTextField(container);
+                if (found != null)
+                    return found;
+            }
+        }
+        return null;
     }
 
     public void createTorrent(ActionEvent e) {
