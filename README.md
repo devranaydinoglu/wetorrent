@@ -6,6 +6,10 @@
 - [Components](#components)
 - [Architecture](#architecture)
 
+
+https://github.com/user-attachments/assets/2553094a-c36e-47ba-bf2b-c8f9464f9249
+
+
 ## Terminology
 
 **Trackers** - central servers that coordinate between users/peers who are downloading and uploading files. They're contacted by a user who wants to find the people who are sharing a file and it's how you tell the swarm that you have pieces to share with others.
